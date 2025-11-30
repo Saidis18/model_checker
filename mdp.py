@@ -2,23 +2,14 @@ from antlr4 import StdinStream, CommonTokenStream, ParseTreeWalker
 from gramLexer import gramLexer
 from gramListener import gramListener
 from gramParser import gramParser
-from typing import List, Dict, Tuple
-
-
-class MarkovChain:
-    """Data structure to hold Markov chain information."""
-
-    def __init__(self) -> None:
-        self.states: Dict[str, int] = {}  # state -> reward
-        self.actions: List[str] = []
-        self.transitions: List[Tuple[str, str, str, int]] = []  # (from, to, action, weight)
+from markov import MarkovChain
 
 
 class gramPrintListener(gramListener):
     """Parses MDP grammar and populates MarkovChain."""
 
-    def __init__(self, chain: MarkovChain) -> None:
-        self.chain = chain
+    def __init__(self) -> None:
+        self.chain = MarkovChain()
         
     def enterStatesrew(self, ctx):
         ids = [str(x) for x in ctx.ID()]
@@ -59,36 +50,19 @@ class gramPrintListener(gramListener):
 
 def parse_mdp() -> MarkovChain:
     """Parse MDP from stdin and return MarkovChain."""
-    chain = MarkovChain()
     lexer = gramLexer(StdinStream())
     stream = CommonTokenStream(lexer)
     parser = gramParser(stream)
     tree = parser.program()
-    listener = gramPrintListener(chain)
+    listener = gramPrintListener()
     walker = ParseTreeWalker()
     walker.walk(listener, tree)
-    return chain
-
-
-def display_chain(chain: MarkovChain) -> None:
-    """Display the Markov chain using visualizer if available."""
-    try:
-        from visualizer import MarkovChainVisualizer
-        viz = MarkovChainVisualizer()
-        for state, reward in chain.states.items():
-            viz.add_state(state, reward)
-        for action in chain.actions:
-            viz.add_action(action)
-        for from_state, to_state, action, weight in chain.transitions:
-            viz.add_transition(from_state, to_state, action, weight)
-        viz.display()
-    except ImportError:
-        print("\n[Info] Visualizer module not found, skipping visualization")
+    return listener.chain
 
 
 def main() -> None:
     chain = parse_mdp()
-    display_chain(chain)
+    chain.display()
 
 
 if __name__ == '__main__':

@@ -8,7 +8,7 @@ except ImportError:
     HAS_GRAPH_LIBS = False
 
 
-class MarkovChainVisualizer:
+class MarkovChain:
     """Simple visualizer for Markov chains."""
 
     def __init__(self) -> None:
