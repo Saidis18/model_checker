@@ -10,7 +10,12 @@ class gramPrintListener(gramListener):
     def __init__(self):
         pass
         
-    def enterDefstates(self, ctx):
+    def enterStatesrew(self, ctx):
+        ids = [str(x) for x in ctx.ID()]
+        rew = [int(str(x)) for x in ctx.INT()]
+        print("States: %s" % str([ids[i] + " with reward " + str(rew[i]) for i in range(len(ids))]))
+        
+    def enterStatesnorew(self, ctx):
         print("States: %s" % str([str(x) for x in ctx.ID()]))
 
     def enterDefactions(self, ctx):
