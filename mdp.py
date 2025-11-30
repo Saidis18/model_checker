@@ -36,11 +36,8 @@ class gramPrintListener(gramListener):
 
             
 
-def main():
+def print():
     lexer = gramLexer(StdinStream())
-    # path = "ex.mdp"
-    # lexer = gramLexer(FileStream(path))
-    # Pour lire directement depuis le fichier
     stream = CommonTokenStream(lexer)
     parser = gramParser(stream)
     tree = parser.program()
@@ -49,4 +46,4 @@ def main():
     walker.walk(printer, tree)
 
 if __name__ == '__main__':
-    main()
+    print()
