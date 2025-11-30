@@ -1,11 +1,7 @@
 from typing import Dict, List, Tuple
 
-try:
-    import networkx as nx
-    import matplotlib.pyplot as plt
-    HAS_GRAPH_LIBS = True
-except ImportError:
-    HAS_GRAPH_LIBS = False
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 class MarkovChain:
@@ -33,12 +29,7 @@ class MarkovChain:
 
     def display(self) -> None:
         """Display the Markov chain as a graph."""
-        if not HAS_GRAPH_LIBS:
-            print("\n[Visualizer] networkx/matplotlib not available. Install with:")
-            print("  pip install networkx matplotlib")
-            self._print_summary()
-            return
-
+        
         G = nx.DiGraph()
 
         # Add nodes
