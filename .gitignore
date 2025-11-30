@@ -3,3 +3,4 @@
 *Parser.py
 *Lexer.py
 *Listener.py
+__pycache__/

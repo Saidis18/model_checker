@@ -6,7 +6,7 @@ program
 
 defstates : statesrew | statesnorew;
 
-statesrew : STATES ID ':' INT (',' ID)* ';';
+statesrew : STATES ID ':' INT (',' ID ':' INT)* ';';
 statesnorew : STATES ID (',' ID)* ';';
 
 defactions : ACTIONS ID (',' ID)* ';';
