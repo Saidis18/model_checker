@@ -3,4 +3,5 @@
 *Parser.py
 *Lexer.py
 *Listener.py
+*.png
 __pycache__/
