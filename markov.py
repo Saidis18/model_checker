@@ -30,10 +30,20 @@ class MarkovModel:
     ) -> None:
         """Add a transition from one state to another."""
         self.transitions.append((from_state, to_state, action, weight))
+
+    @property
+    def rewardless(self) -> bool:
+        """Return True if the model has rewards, else False."""
+        all_reward =  all(reward != -1 for reward in self.states.values())
+        no_reward = all(reward == -1 for reward in self.states.values())
+        assert no_reward or all_reward, "Cannot mix rewardless and rewarded models."
+        return no_reward
     
     def assert_valid(self) -> None:
         """Assert that the Markov model is valid."""
         no_action_transitions = [t[0] for t in self.transitions if t[2] == self.no_action_symbol]
+        if not self.rewardless:
+            assert all(reward >= 0 for reward in self.states.values()), "Rewards must be non-negative."
         for from_state, to_state, action, weight in self.transitions:
             assert from_state in self.states, f"State '{from_state}' not defined."
             assert to_state in self.states, f"State '{to_state}' not defined."
@@ -65,7 +75,7 @@ class MarkovModel:
         """Return 'MDP' if actions are used, else 'MC'."""
         return "MDP" if any(t[2] != self.no_action_symbol for t in self.transitions) else "MC"
     
-    def walk(self, start_state: str, steps: int, policy: None | Dict[str, str] = None) -> List[str]:
+    def walk(self, start_state: str, steps: int, policy: None | Dict[str, str] = None) -> Tuple[List[str], int | None]:
         """Simulate a walk through the Markov model."""
         assert self.normalized, "Transitions must be normalized before walking."
         assert start_state in self.states, f"Start state '{start_state}' not defined."
@@ -75,6 +85,7 @@ class MarkovModel:
 
         current_state = start_state
         path = [current_state]
+        reward = 0
 
         for _ in range(steps):
             possible_transitions = [t for t in self.transitions if t[0] == current_state]
@@ -86,10 +97,13 @@ class MarkovModel:
                 break  # No transitions for the chosen action, end the walk
             probabilities = [t[3] for t in action_transitions]
             next_states = [t[1] for t in action_transitions]
+            reward += self.states[current_state] # accumulate reward once we are sure we can move to next state
             current_state = random.choices(next_states, weights=probabilities, k=1)[0]
             path.append(current_state)
 
-        return path
+        if self.rewardless:
+            reward = None
+        return path, reward
 
     def display(self) -> None:
         """Display the Markov model using Graphviz."""
@@ -152,7 +166,7 @@ class gramPrintListener(gramListener):
     def enterStatesnorew(self, ctx):
         ids = [str(x) for x in ctx.ID()]
         for state in ids:
-            self.chain.states[state] = 0
+            self.chain.states[state] = -1
         print("States: %s" % str([str(x) for x in ctx.ID()]))
 
     def enterDefactions(self, ctx):
