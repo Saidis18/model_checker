@@ -8,11 +8,12 @@ from gramParser import gramParser
 
 class MarkovModel:
     """Represents a Markov Chain or Markov Decision Process."""
+    _trans_t = Tuple[str, str, str, int] | Tuple[str, str, str, float]  # (from, to, action, weight or probability)
     def __init__(self) -> None:
         self.no_action_symbol = "*"
         self.states: Dict[str, int] = {}  # state -> reward
         self.actions: List[str] = [self.no_action_symbol]
-        self.transitions: List[Tuple[str, str, str, int]] = []  # (from, to, action, weight)
+        self.transitions: List[MarkovModel._trans_t] = []
 
     def add_state(self, name: str, reward: int = 0) -> None:
         """Add a state with optional reward."""
@@ -39,6 +40,23 @@ class MarkovModel:
             assert weight >= 0, "Transition weight must be non-negative."
             if action != self.no_action_symbol:
                 assert from_state not in no_action_transitions, "Cannot mix actions with no-action transitions."
+
+    def normalize_transitions(self) -> None:
+        """Normalize transition weights to probabilities."""
+        sum_weights: Dict[Tuple[str, str], int | float] = {}
+        for from_state, to_state, action, weight in self.transitions:
+            sum_weights[(from_state, action)] = sum_weights.get((from_state, action), 0) + weight
+        
+        normalized_transitions: List[MarkovModel._trans_t] = []
+        for from_state, to_state, action, weight in self.transitions:
+            total = sum_weights[(from_state, action)]
+            if total > 0:
+                probability = weight / total
+            else:
+                probability = 0.0
+            normalized_transitions.append((from_state, to_state, action, probability))
+
+        self.transitions = normalized_transitions
 
     def display(self) -> None:
         """Display the Markov model using Graphviz."""

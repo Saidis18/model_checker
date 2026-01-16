@@ -4,6 +4,7 @@ import markov
 
 def main() -> None:
     chain = markov.parse_mdp(StdinStream())
+    chain.normalize_transitions()
     chain.display()
 
 
