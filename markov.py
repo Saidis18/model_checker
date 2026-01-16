@@ -4,6 +4,7 @@ from antlr4 import StdinStream, CommonTokenStream, ParseTreeWalker
 from gramLexer import gramLexer
 from gramListener import gramListener
 from gramParser import gramParser
+import random
 
 
 class MarkovModel:
@@ -57,6 +58,38 @@ class MarkovModel:
             normalized_transitions.append((from_state, to_state, action, probability))
 
         self.transitions = normalized_transitions
+        self.normalized = True
+
+    @property
+    def kind(self) -> str:
+        """Return 'MDP' if actions are used, else 'MC'."""
+        return "MDP" if any(t[2] != self.no_action_symbol for t in self.transitions) else "MC"
+    
+    def walk(self, start_state: str, steps: int, policy: None | Dict[str, str] = None) -> List[str]:
+        """Simulate a walk through the Markov model."""
+        assert self.normalized, "Transitions must be normalized before walking."
+        assert start_state in self.states, f"Start state '{start_state}' not defined."
+        assert self.kind == "MDP" and policy is not None or self.kind == "MC", "Policy must be provided for MDPs."
+        if policy is None:
+            policy = {}
+
+        current_state = start_state
+        path = [current_state]
+
+        for _ in range(steps):
+            possible_transitions = [t for t in self.transitions if t[0] == current_state]
+            if not possible_transitions:
+                break  # No outgoing transitions, end the walk
+            action = policy.get(current_state, self.no_action_symbol)
+            action_transitions = [t for t in possible_transitions if t[2] == action]
+            if not action_transitions:
+                break  # No transitions for the chosen action, end the walk
+            probabilities = [t[3] for t in action_transitions]
+            next_states = [t[1] for t in action_transitions]
+            current_state = random.choices(next_states, weights=probabilities, k=1)[0]
+            path.append(current_state)
+
+        return path
 
     def display(self) -> None:
         """Display the Markov model using Graphviz."""
