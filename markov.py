@@ -12,6 +12,7 @@ class MarkovModel:
     _trans_t = Tuple[str, str, str, int] | Tuple[str, str, str, float]  # (from, to, action, weight or probability)
     def __init__(self) -> None:
         self.no_action_symbol = "*"
+        self.normalized = False
         self.states: Dict[str, int] = {}  # state -> reward
         self.actions: List[str] = [self.no_action_symbol]
         self.transitions: List[MarkovModel._trans_t] = []
@@ -54,6 +55,8 @@ class MarkovModel:
 
     def normalize_transitions(self) -> None:
         """Normalize transition weights to probabilities."""
+        if self.normalized:
+            return  # Already normalized
         sum_weights: Dict[Tuple[str, str], int | float] = {}
         for from_state, to_state, action, weight in self.transitions:
             sum_weights[(from_state, action)] = sum_weights.get((from_state, action), 0) + weight
@@ -120,11 +123,52 @@ class MarkovModel:
         mc.assert_valid()
         mc.normalize_transitions()
         return mc
+    
+    def _MC_iter_accessibility(self, start_state: str, end_state: str, steps: int) -> float:
+        """Compute the probability of reaching end_state from start_state in at least n steps."""
+        assert self.kind == "MC", "Accessibility can only be computed for Markov Chains."
+        self.assert_valid()
+        self.normalize_transitions()
+        assert start_state in self.states, f"Start state '{start_state}' not defined."
+        assert end_state in self.states, f"End state '{end_state}' not defined."
 
-    def display(self) -> None:
+        # Initialize probability distribution: 1.0 at start_state, 0 elsewhere
+        prob_dist: Dict[str, float] = {state: 0.0 for state in self.states}
+        prob_dist[start_state] = 1.0
+
+        # Iteratively apply transition probabilities for 'steps' iterations
+        # Treat end_state as absorbing (once reached, stays there)
+        for _ in range(steps):
+            next_dist: Dict[str, float] = {state: 0.0 for state in self.states}
+            
+            for from_state, prob in prob_dist.items():
+                if prob > 0:
+                    if from_state == end_state:
+                        # End state is absorbing - probability stays there
+                        next_dist[end_state] += prob
+                    else:
+                        # Get all transitions from this state
+                        outgoing = [t for t in self.transitions if t[0] == from_state]
+                        for _, to_state, _, transition_prob in outgoing:
+                            next_dist[to_state] += prob * transition_prob
+            
+            prob_dist = next_dist
+
+        return prob_dist[end_state]
+    
+    def iter_accessibility(self, start_state: str, end_state: str, policy: Dict[str, str], steps: int) -> float:
+        """Compute the accessibility probability from start_state to end_state in given steps."""
+        self.assert_valid()
+        if self.kind == "MC":
+            return self._MC_iter_accessibility(start_state, end_state, steps)
+        else:
+            mc = self.markov_chain_from_policy(policy)
+            return mc._MC_iter_accessibility(start_state, end_state, steps)
+
+    def display(self, output_name: str) -> None:
         """Display the Markov model using Graphviz."""
 
-        graph = Digraph("markov_model", format="png")
+        graph = Digraph(output_name, format="png")
         graph.attr(rankdir="LR")
         graph.attr("node", shape="circle", style="filled", fillcolor="lightblue")
         graph.attr("edge", color="gray")
@@ -149,9 +193,8 @@ class MarkovModel:
 
         # Render and display
         try:
-            output_path = "markov_model"
-            graph.render(output_path, view=False, cleanup=True)
-            print(f"[Visualizer] Graph saved to {output_path}.png")
+            graph.render(output_name, view=False, cleanup=True)
+            print(f"[Visualizer] Graph saved to {output_name}.png")
         except Exception as e:
             print(f"[Visualizer] Error rendering graph: {e}")
             self._print_summary()
