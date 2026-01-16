@@ -43,7 +43,7 @@ class gramPrintListener(gramListener):
         dep = ids.pop(0)
         weights = [int(str(x)) for x in ctx.INT()]
         for i, target in enumerate(ids):
-            self.chain.transitions.append((dep, target, "tau", weights[i]))
+            self.chain.transitions.append((dep, target, "*", weights[i]))
         print("Transition from " + dep + " with no action and targets " + str(ids) + " with weights " + str(weights))
 
 

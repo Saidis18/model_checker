@@ -46,7 +46,7 @@ class MarkovChain:
             key = (from_state, to_state)
             if key not in edge_transitions:
                 edge_transitions[key] = []
-            edge_transitions[key].append(f"{action}({weight})")
+            edge_transitions[key].append(f"{action} -- {weight}")
 
         # Add edges with combined labels
         for (from_state, to_state), labels in edge_transitions.items():
