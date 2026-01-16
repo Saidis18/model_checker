@@ -168,6 +168,52 @@ class MarkovModel:
         else:
             mc = self.markov_chain_from_policy(policy)
             return mc._MC_iter_accessibility(start_state, end_state, steps)
+        
+    def _MC_expected_reward(self, start_state: str, end_state: str, steps: int) -> float:
+        """Compute the expected reward to reach end_state from start_state in given steps."""
+        assert self.kind == "MC", "Expected reward can only be computed for Markov Chains."   
+        self.normalize_transitions()
+        assert start_state in self.states, f"Start state '{start_state}' not defined."
+        assert end_state in self.states, f"End state '{end_state}' not defined."
+
+        # Initialize probability and reward distributions
+        prob_dist: Dict[str, float] = {state: 0.0 for state in self.states}
+        reward_dist: Dict[str, float] = {state: 0.0 for state in self.states}
+        prob_dist[start_state] = 1.0
+
+        for _ in range(steps):
+            next_prob_dist: Dict[str, float] = {state: 0.0 for state in self.states}
+            next_reward_dist: Dict[str, float] = {state: 0.0 for state in self.states}
+
+            for from_state, prob in prob_dist.items():
+                if prob > 0:
+                    if from_state == end_state:
+                        next_prob_dist[end_state] += prob
+                        next_reward_dist[end_state] += reward_dist[end_state] + prob * self.rewards[end_state]
+                    else:
+                        outgoing = [t for t in self.transitions if t[0] == from_state]
+                        for _, to_state, _, transition_prob in outgoing:
+                            next_prob_dist[to_state] += prob * transition_prob
+                            next_reward_dist[to_state] += (reward_dist[from_state] + prob * self.rewards[from_state]) * transition_prob
+
+            prob_dist = next_prob_dist
+            reward_dist = next_reward_dist
+
+        if prob_dist[end_state] > 0:
+            expected_reward = reward_dist[end_state] / prob_dist[end_state]
+        else:
+            expected_reward = 0.0
+
+        return expected_reward
+    
+    def expected_reward(self, start_state: str, end_state: str, policy: Dict[str, str], steps: int) -> float:
+        """Compute the expected reward to reach end_state from start_state in given steps."""
+        self.assert_valid()
+        if self.kind == "MC":
+            return self._MC_expected_reward(start_state, end_state, steps)
+        else:
+            mc = self.markov_chain_from_policy(policy)
+            return mc._MC_expected_reward(start_state, end_state, steps)
 
     def display(self, output_name: str) -> None:
         """Display the Markov model using Graphviz."""
