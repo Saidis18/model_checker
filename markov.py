@@ -13,13 +13,16 @@ class MarkovModel:
     def __init__(self) -> None:
         self.no_action_symbol = "*"
         self.normalized = False
-        self.states: Dict[str, int] = {}  # state -> reward
+        self.states: List[str] = []  # list of state names
+        self.rewards: Dict[str, int] = {}  # state -> reward mapping
         self.actions: List[str] = [self.no_action_symbol]
         self.transitions: List[MarkovModel._trans_t] = []
 
     def add_state(self, name: str, reward: int = 0) -> None:
         """Add a state with optional reward."""
-        self.states[name] = reward
+        if name not in self.states:
+            self.states.append(name)
+        self.rewards[name] = reward
 
     def add_action(self, name: str) -> None:
         """Add an action."""
@@ -35,8 +38,8 @@ class MarkovModel:
     @property
     def rewardless(self) -> bool:
         """Return True if the model has rewards, else False."""
-        all_reward =  all(reward != -1 for reward in self.states.values())
-        no_reward = all(reward == -1 for reward in self.states.values())
+        all_reward =  all(self.rewards.get(state, -1) != -1 for state in self.states)
+        no_reward = all(self.rewards.get(state, -1) == -1 for state in self.states)
         assert no_reward or all_reward, "Cannot mix rewardless and rewarded models."
         return no_reward
     
@@ -44,7 +47,7 @@ class MarkovModel:
         """Assert that the Markov model is valid."""
         no_action_transitions = [t[0] for t in self.transitions if t[2] == self.no_action_symbol]
         if not self.rewardless:
-            assert all(reward >= 0 for reward in self.states.values()), "Rewards must be non-negative."
+            assert all(self.rewards.get(state, -1) >= 0 for state in self.states), "Rewards must be non-negative."
         for from_state, to_state, action, weight in self.transitions:
             assert from_state in self.states, f"State '{from_state}' not defined."
             assert to_state in self.states, f"State '{to_state}' not defined."
@@ -102,7 +105,7 @@ class MarkovModel:
             probabilities = [t[3] for t in action_transitions]
             next_states = [t[1] for t in action_transitions]
             if not no_reward:
-                current_reward += self.states[current_state] # accumulate reward once we are sure we can move to next state
+                current_reward += self.rewards[current_state] # accumulate reward once we are sure we can move to next state
             current_state = random.choices(next_states, weights=probabilities, k=1)[0]
             path.append((current_state, current_reward))
 
@@ -114,6 +117,7 @@ class MarkovModel:
         self.assert_valid()
         mc = MarkovModel()
         mc.states = self.states.copy()
+        mc.rewards = self.rewards.copy()
         mc.actions = [self.no_action_symbol]
         
         for from_state, to_state, action, weight in self.transitions:
@@ -174,7 +178,8 @@ class MarkovModel:
         graph.attr("edge", color="gray")
 
         # Add states as nodes
-        for state, reward in self.states.items():
+        for state in self.states:
+            reward = self.rewards.get(state, 0)
             label = state + (f"\n(r={reward})" if reward != 0 else "")
             graph.node(state, label=label)
 
@@ -202,7 +207,7 @@ class MarkovModel:
     def _print_summary(self) -> None:
         """Print a text summary of the Markov model."""
         print("\n=== Markov Model Summary ===")
-        print(f"States: {list(self.states.keys())}")
+        print(f"States: {self.states}")
         print(f"Actions: {self.actions}")
         print("Transitions:")
         for from_state, to_state, action, weight in self.transitions:
@@ -219,13 +224,13 @@ class gramPrintListener(gramListener):
         ids = [str(x) for x in ctx.ID()]
         rew = [int(str(x)) for x in ctx.INT()]
         for i in range(len(ids)):
-            self.chain.states[ids[i]] = rew[i]
+            self.chain.add_state(ids[i], rew[i])
         print("States: %s" % str([ids[i] + " with reward " + str(rew[i]) for i in range(len(ids))]))
         
     def enterStatesnorew(self, ctx):
         ids = [str(x) for x in ctx.ID()]
         for state in ids:
-            self.chain.states[state] = -1
+            self.chain.add_state(state, -1)
         print("States: %s" % str([str(x) for x in ctx.ID()]))
 
     def enterDefactions(self, ctx):
