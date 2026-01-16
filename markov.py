@@ -5,6 +5,26 @@ from gramLexer import gramLexer
 from gramListener import gramListener
 from gramParser import gramParser
 import random
+import numpy as np
+
+def mc_or_mdp_with_policy(mc_func):
+    """
+    Decorator that allows Markov Chain-only functions to work with MDPs via policy conversion.
+    
+    When applied to a method, if the model is an MDP and a policy is provided,
+    it converts the MDP to an MC using the policy and calls the function on the converted MC.
+    If the model is already an MC, it calls the function directly.
+    """
+    def wrapper(self, *args, policy: Dict[str, str] | None = None, **kwargs):
+        self.assert_valid()
+        if self.kind == "MC":
+            return mc_func(self, *args, **kwargs)
+        else:
+            # Extract policy from positional args if not provided as keyword
+            assert policy is not None, "Policy must be provided for MDP."
+            mc = self.markov_chain_from_policy(policy)
+            return mc_func(mc, *args, **kwargs)
+    return wrapper
 
 
 class MarkovModel:
@@ -128,10 +148,9 @@ class MarkovModel:
         mc.normalize_transitions()
         return mc
     
-    def _MC_iter_accessibility(self, start_state: str, end_state: str, steps: int) -> float:
+    @mc_or_mdp_with_policy
+    def iter_accessibility(self, start_state: str, end_state: str, steps: int) -> float:
         """Compute the probability of reaching end_state from start_state in at least n steps."""
-        assert self.kind == "MC", "Accessibility can only be computed for Markov Chains."
-        self.assert_valid()
         self.normalize_transitions()
         assert start_state in self.states, f"Start state '{start_state}' not defined."
         assert end_state in self.states, f"End state '{end_state}' not defined."
@@ -159,19 +178,10 @@ class MarkovModel:
             prob_dist = next_dist
 
         return prob_dist[end_state]
-    
-    def iter_accessibility(self, start_state: str, end_state: str, policy: Dict[str, str], steps: int) -> float:
-        """Compute the accessibility probability from start_state to end_state in given steps."""
-        self.assert_valid()
-        if self.kind == "MC":
-            return self._MC_iter_accessibility(start_state, end_state, steps)
-        else:
-            mc = self.markov_chain_from_policy(policy)
-            return mc._MC_iter_accessibility(start_state, end_state, steps)
         
-    def _MC_expected_reward(self, start_state: str, end_state: str, steps: int) -> float:
+    @mc_or_mdp_with_policy
+    def expected_reward(self, start_state: str, end_state: str, steps: int) -> float:
         """Compute the expected reward to reach end_state from start_state in given steps."""
-        assert self.kind == "MC", "Expected reward can only be computed for Markov Chains."   
         self.normalize_transitions()
         assert start_state in self.states, f"Start state '{start_state}' not defined."
         assert end_state in self.states, f"End state '{end_state}' not defined."
@@ -205,15 +215,21 @@ class MarkovModel:
             expected_reward = 0.0
 
         return expected_reward
-    
-    def expected_reward(self, start_state: str, end_state: str, policy: Dict[str, str], steps: int) -> float:
-        """Compute the expected reward to reach end_state from start_state in given steps."""
-        self.assert_valid()
-        if self.kind == "MC":
-            return self._MC_expected_reward(start_state, end_state, steps)
-        else:
-            mc = self.markov_chain_from_policy(policy)
-            return mc._MC_expected_reward(start_state, end_state, steps)
+
+    @mc_or_mdp_with_policy
+    def get_matrix_representation(self) -> np.ndarray:
+        """Get the transition matrix representation of the Markov model."""
+        self.normalize_transitions()
+        size = len(self.states)
+        state_index = {state: idx for idx, state in enumerate(self.states)}
+        matrix = np.zeros((size, size))
+
+        for from_state, to_state, _, prob in self.transitions:
+            i = state_index[from_state]
+            j = state_index[to_state]
+            matrix[i][j] += prob
+
+        return matrix
 
     def display(self, output_name: str) -> None:
         """Display the Markov model using Graphviz."""
