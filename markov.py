@@ -26,7 +26,7 @@ class MarkovModel:
             self.actions.append(name)
 
     def add_transition(
-        self, from_state: str, to_state: str, action: str, weight: int
+        self, from_state: str, to_state: str, action: str, weight: int | float
     ) -> None:
         """Add a transition from one state to another."""
         self.transitions.append((from_state, to_state, action, weight))
@@ -104,6 +104,22 @@ class MarkovModel:
             path.append((current_state, current_reward))
 
         return path
+    
+    def markov_chain_from_policy(self, policy: Dict[str, str]) -> 'MarkovModel':
+        """Generate a Markov Chain from the MDP using the given policy."""
+        assert self.kind == "MDP", "Can only generate Markov Chain from MDP."
+        self.assert_valid()
+        mc = MarkovModel()
+        mc.states = self.states.copy()
+        mc.actions = [self.no_action_symbol]
+        
+        for from_state, to_state, action, weight in self.transitions:
+            if action == policy.get(from_state, self.no_action_symbol):
+                mc.add_transition(from_state, to_state, self.no_action_symbol, weight)
+        
+        mc.assert_valid()
+        mc.normalize_transitions()
+        return mc
 
     def display(self) -> None:
         """Display the Markov model using Graphviz."""
@@ -135,9 +151,9 @@ class MarkovModel:
         try:
             output_path = "markov_model"
             graph.render(output_path, view=False, cleanup=True)
-            print(f"\n[Visualizer] Graph saved to {output_path}.png")
+            print(f"[Visualizer] Graph saved to {output_path}.png")
         except Exception as e:
-            print(f"\n[Visualizer] Error rendering graph: {e}")
+            print(f"[Visualizer] Error rendering graph: {e}")
             self._print_summary()
 
     def _print_summary(self) -> None:
