@@ -75,7 +75,7 @@ class MarkovModel:
         """Return 'MDP' if actions are used, else 'MC'."""
         return "MDP" if any(t[2] != self.no_action_symbol for t in self.transitions) else "MC"
     
-    def walk(self, start_state: str, steps: int, policy: None | Dict[str, str] = None) -> Tuple[List[str], int | None]:
+    def walk(self, start_state: str, steps: int, policy: None | Dict[str, str] = None) -> List[Tuple[str, int]]:
         """Simulate a walk through the Markov model."""
         assert self.normalized, "Transitions must be normalized before walking."
         assert start_state in self.states, f"Start state '{start_state}' not defined."
@@ -84,8 +84,9 @@ class MarkovModel:
             policy = {}
 
         current_state = start_state
-        path = [current_state]
-        reward = 0
+        current_reward = 0
+        path = [(current_state, current_reward)]
+        no_reward = self.rewardless
 
         for _ in range(steps):
             possible_transitions = [t for t in self.transitions if t[0] == current_state]
@@ -97,13 +98,12 @@ class MarkovModel:
                 break  # No transitions for the chosen action, end the walk
             probabilities = [t[3] for t in action_transitions]
             next_states = [t[1] for t in action_transitions]
-            reward += self.states[current_state] # accumulate reward once we are sure we can move to next state
+            if not no_reward:
+                current_reward += self.states[current_state] # accumulate reward once we are sure we can move to next state
             current_state = random.choices(next_states, weights=probabilities, k=1)[0]
-            path.append(current_state)
+            path.append((current_state, current_reward))
 
-        if self.rewardless:
-            reward = None
-        return path, reward
+        return path
 
     def display(self) -> None:
         """Display the Markov model using Graphviz."""

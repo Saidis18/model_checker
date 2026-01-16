@@ -8,12 +8,8 @@ def main() -> None:
     chain.display()
     print("\nSimulated Trace:")
     ex_policy = {"S1": "b", "S2": "b"}  # Example policy for MDP
-    trace, reward = chain.walk(start_state=list(chain.states.keys())[0], steps=10, policy=ex_policy)
-    print(" -> ".join(trace))
-    if reward is not None:
-        print(f"Total Reward: {reward}")
-    else:
-        print("No rewards defined.")
+    trace = chain.walk(start_state=list(chain.states.keys())[0], steps=10, policy=ex_policy)
+    print(" -> ".join(f"{state} ({reward})" for state, reward in trace))
 
 
 if __name__ == '__main__':
