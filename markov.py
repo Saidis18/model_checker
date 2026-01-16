@@ -141,7 +141,7 @@ class MarkovModel:
         mc.actions = [self.no_action_symbol]
         
         for from_state, to_state, action, weight in self.transitions:
-            if action == policy.get(from_state, self.no_action_symbol):
+            if action == policy.get(from_state, self.no_action_symbol) or action == self.no_action_symbol:
                 mc.add_transition(from_state, to_state, self.no_action_symbol, weight)
         
         mc.assert_valid()
@@ -230,6 +230,38 @@ class MarkovModel:
             matrix[i][j] += prob
 
         return matrix
+    
+    @mc_or_mdp_with_policy
+    def accessibility(self, start_state: str, end_state: str) -> float:
+        """Compute the probability of eventually reaching end_state from start_state."""
+        self.normalize_transitions()
+        assert start_state in self.states, f"Start state '{start_state}' not defined."
+        assert end_state in self.states, f"End state '{end_state}' not defined."
+
+        matrix = self.get_matrix_representation()
+        end_idx = self.states.index(end_state)
+        
+        # Remove end_state row and column to get transient-to-transient transitions
+        matrix = np.delete(matrix, end_idx, 0)  # deletes the desired row 
+        matrix = np.delete(matrix, end_idx, 1)  # deletes the desired column
+        
+        # Build b_vector: transition probabilities directly to end_state
+        b_dict = {from_state: prob for from_state, to_state, _, prob in self.transitions if to_state == end_state}
+        b_list = [b_dict.get(state, 0.0) for state in self.states if state != end_state]
+        b_vector = np.array(b_list)
+        
+        # Solve for fixed point: x = matrix*x + b_vector
+        # Rearranged: (I - matrix)*x = b_vector
+        identity = np.eye(len(b_vector))
+        A = identity - matrix
+        x = np.linalg.solve(A, b_vector)
+        
+        # Find the index of start_state in the filtered state list (excluding end_state)
+        start_idx = self.states.index(start_state)
+        if start_idx > end_idx:
+            start_idx -= 1  # Adjust index since end_state row/column was removed
+        
+        return x[start_idx]
 
     def display(self, output_name: str) -> None:
         """Display the Markov model using Graphviz."""
