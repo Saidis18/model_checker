@@ -31,11 +31,14 @@ class MarkovModel:
     
     def assert_valid(self) -> None:
         """Assert that the Markov model is valid."""
+        no_action_transitions = [t[0] for t in self.transitions if t[2] == self.no_action_symbol]
         for from_state, to_state, action, weight in self.transitions:
             assert from_state in self.states, f"State '{from_state}' not defined."
             assert to_state in self.states, f"State '{to_state}' not defined."
             assert action in self.actions, f"Action '{action}' not defined."
             assert weight >= 0, "Transition weight must be non-negative."
+            if action != self.no_action_symbol:
+                assert from_state not in no_action_transitions, "Cannot mix actions with no-action transitions."
 
     def display(self) -> None:
         """Display the Markov model using Graphviz."""
