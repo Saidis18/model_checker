@@ -227,7 +227,8 @@ class MarkovModel:
         for from_state, to_state, _, prob in self.transitions:
             i = state_index[from_state]
             j = state_index[to_state]
-            matrix[i][j] += prob
+            assert matrix[i][j] == 0.0, "Multiple transitions between same states detected."
+            matrix[i][j] = prob
 
         return matrix
     
